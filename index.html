@@ -345,15 +345,32 @@ function setSync(label, ok){
 // 1) Apps Script を Web アプリとしてデプロイし、発行された URL を下の GAS_URL に貼り付けてください。
 //    手順はチャットの説明を参照してください（UMKシフト表と同じ方式です）。
 // 2) GAS_URL が空のままの場合は、このプレビュー内でのみ動作する一時保存（window.storage）にフォールバックします。
-const GAS_URL = ""; // 例: "https://script.google.com/macros/s/XXXXXXXXXXXX/exec"
+const GAS_URL = "https://script.google.com/macros/s/AKfycbz1Fk5IuqZ3GaBaDDkVjhhAxWy_PW9VGrnoETqck_-46aRIuEX3v4yaaIJdupcT16Of/exec";
 
 function hasGas(){ return !!GAS_URL; }
+
+function jsonp(url){
+  return new Promise((resolve, reject)=>{
+    const cbName = "jsonpCb" + Date.now() + Math.floor(Math.random()*100000);
+    const script = document.createElement("script");
+    let timer;
+    window[cbName] = (data)=>{ cleanup(); resolve(data); };
+    function cleanup(){
+      clearTimeout(timer);
+      delete window[cbName];
+      script.remove();
+    }
+    script.onerror = ()=>{ cleanup(); reject(new Error("jsonp load error")); };
+    timer = setTimeout(()=>{ cleanup(); reject(new Error("jsonp timeout")); }, 8000);
+    script.src = url + (url.includes("?") ? "&" : "?") + "callback=" + cbName;
+    document.body.appendChild(script);
+  });
+}
 
 async function kvGet(key){
   if(hasGas()){
     try{
-      const res = await fetch(`${GAS_URL}?key=${encodeURIComponent(key)}`);
-      const data = await res.json();
+      const data = await jsonp(`${GAS_URL}?key=${encodeURIComponent(key)}`);
       return (data && data.value != null) ? data.value : null;
     }catch(e){
       console.error("GAS get failed", e);
@@ -371,7 +388,8 @@ async function kvSet(key, value){
     try{
       await fetch(GAS_URL, {
         method:"POST",
-        headers:{ "Content-Type":"text/plain;charset=utf-8" }, // text/plain でCORSプリフライトを回避
+        mode:"no-cors", // レスポンスは読めないが送信は通る（CORS制限を回避）
+        headers:{ "Content-Type":"text/plain;charset=utf-8" },
         body: JSON.stringify({ key, value })
       });
       return;
