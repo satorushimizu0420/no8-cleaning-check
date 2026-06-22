@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>朝の掃除チェック | No.8</title>
+<style>
+  :root{
+    --bg:#FFF7FA;
+    --surface:#FFFFFF;
+    --ink:#4A3F50;
+    --muted:#B6A6BE;
+    --line:#F6DEEA;
+    --accent:#FF6FA1;
+    --accent-soft:#FFE6F0;
+    --mon:#ACA5B8;
+    --sat:#6EC6E8;
+    --sun:#FF8FA3;
+    --weekend-tint:#FFF1F7;
+    --closed-tint:#EFEDF1;
+    --today-ring:#FF6FA1;
+    --radius:16px;
+    --shadow:0 4px 16px rgba(255,111,161,0.10);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .app{max-width:760px;margin:0 auto;}
+
+  header.top{
+    background:var(--surface);
+    border-bottom:1px solid var(--line);
+    padding:16px 16px 0;
+    position:sticky;top:0;z-index:25;
+  }
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:0.14em;color:var(--muted);}
+  .title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:2px;flex-wrap:wrap;}
+  .title{font-size:22px;font-weight:800;color:var(--accent);margin:0;letter-spacing:-0.01em;}
+  .month-pill{
+    display:flex;align-items:center;gap:10px;
+    background:var(--bg);border:1px solid var(--line);border-radius:30px;
+    padding:7px 8px 7px 14px;font-weight:700;font-size:14px;color:var(--ink);cursor:pointer;
+  }
+  .month-pill .chev{
+    width:24px;height:24px;border-radius:50%;background:var(--surface);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:15px;font-weight:800;
+  }
+  .toolbar{display:flex;gap:8px;margin-top:12px;}
+  .tool-btn{
+    width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface);
+    display:flex;align-items:center;justify-content:center;color:var(--muted);cursor:pointer;
+  }
+  .tool-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .tool-btn svg{width:18px;height:18px;}
+  .sync-label{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px;margin-left:2px;}
+
+  .store-tabs{
+    display:flex;gap:18px;overflow-x:auto;margin-top:14px;padding-bottom:0;
+    scrollbar-width:none;
+  }
+  .store-tabs::-webkit-scrollbar{display:none;}
+  .store-tab{
+    flex:none;font-size:14.5px;font-weight:700;color:var(--muted);padding:6px 2px 12px;
+    border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;
+  }
+  .store-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+  main{padding:16px;}
+
+  .grid-wrap{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);overflow-x:auto;position:relative;
+  }
+  table.cleangrid{border-collapse:collapse;width:max-content;font-size:12.5px;}
+  table.cleangrid th, table.cleangrid td{
+    border-bottom:1px solid var(--line);border-right:1px solid var(--line);
+    text-align:center;padding:0;
+  }
+  table.cleangrid th.daycol, table.cleangrid td.daycell{
+    width:42px;min-width:42px;height:46px;
+  }
+  table.cleangrid th.areacol, table.cleangrid td.areacell{
+    width:118px;min-width:118px;text-align:left;
+    position:sticky;left:0;background:var(--surface);z-index:5;
+    border-right:1.5px solid var(--line);
+  }
+  table.cleangrid thead th{
+    background:var(--surface);position:sticky;top:0;z-index:6;padding:8px 4px 6px;
+  }
+  table.cleangrid thead th.areacol{z-index:8;}
+  .dow-num{font-weight:800;font-size:13px;line-height:1.1;}
+  .dow-jp{font-size:9.5px;color:var(--muted);font-weight:600;}
+  th.weekend, td.weekend{background:var(--weekend-tint);}
+  th.closed, td.closed{background:var(--closed-tint);}
+  th.col-mon .dow-num{color:var(--mon);}
+  th.col-mon .dow-jp{color:var(--mon);font-weight:800;}
+  th.col-sat .dow-num, th.col-sat .dow-jp{color:var(--sat);}
+  th.col-sun .dow-num, th.col-sun .dow-jp{color:var(--sun);}
+  th.col-today, td.col-today{box-shadow:inset 0 0 0 2px var(--today-ring);}
+
+  .area-name-btn{
+    width:100%;height:100%;background:none;border:none;text-align:left;
+    padding:10px 12px;font-family:inherit;font-size:13px;font-weight:700;color:var(--ink);
+    cursor:pointer;display:flex;align-items:center;gap:8px;
+  }
+  .area-name-btn .badge{
+    flex:none;width:8px;height:8px;border-radius:50%;background:var(--accent);opacity:0.35;
+  }
+
+  .cellbtn{
+    width:100%;height:46px;background:none;border:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);
+  }
+  .cellbtn .mark{
+    min-width:30px;max-width:38px;height:22px;padding:0 5px;border-radius:7px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:10.5px;font-weight:800;color:var(--muted);background:transparent;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .cellbtn.done .mark{color:#5A4A56;font-weight:800;}
+  .cellbtn.future{opacity:0.35;cursor:default;}
+
+  .staffchip{
+    flex:none;display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:30px;
+    border:1.5px solid var(--line);background:var(--surface);cursor:pointer;font-size:13.5px;font-weight:700;color:var(--ink);
+  }
+  .staffchip .dotcolor{width:10px;height:10px;border-radius:50%;flex:none;}
+  .staff-color-preview{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block;margin-right:2px;}
+
+  .legend{display:flex;gap:18px;margin-top:14px;font-size:12px;color:var(--muted);flex-wrap:wrap;padding:0 2px;}
+  .legend .swatch{display:inline-flex;align-items:center;gap:6px;}
+  .legend .dot{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;}
+  .legend .dot.on{background:var(--accent);}
+  .legend .dot.off{background:var(--bg);border:1px solid var(--line);color:var(--muted);}
+
+  .empty-areas{
+    text-align:center;color:var(--muted);font-size:13px;padding:36px 18px;
+  }
+
+  /* modal / bottom sheet */
+  .sheet-overlay{
+    position:fixed;inset:0;background:rgba(20,24,32,0.45);display:none;align-items:flex-end;justify-content:center;z-index:50;
+  }
+  .sheet-overlay.show{display:flex;}
+  .sheet{
+    background:var(--bg);width:100%;max-width:760px;border-radius:20px 20px 0 0;
+    max-height:85vh;overflow-y:auto;padding:10px 18px 28px;
+  }
+  .sheet-handle{width:36px;height:4px;background:var(--line);border-radius:3px;margin:6px auto 14px;}
+  .sheet h3{font-size:16px;font-weight:800;margin:6px 0 2px;}
+  .sheet .sub{font-size:12px;color:var(--muted);margin:0 0 14px;}
+  .sheet-section{margin-bottom:22px;}
+  .sheet-section-title{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:0.06em;margin-bottom:10px;}
+
+  .row-edit{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .row-edit input{
+    flex:1;font-family:inherit;font-size:14px;padding:10px 12px;border-radius:10px;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  }
+  .icon-btn{
+    width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--surface);
+    color:var(--sun);cursor:pointer;flex:none;font-size:15px;display:flex;align-items:center;justify-content:center;
+  }
+  .add-btn{
+    width:100%;padding:11px;border-radius:10px;border:1.5px dashed var(--line);background:transparent;
+    color:var(--accent);font-weight:700;font-size:13.5px;cursor:pointer;margin-top:4px;
+  }
+  .btn-save-all{
+    width:100%;padding:14px;border-radius:30px;border:none;background:var(--accent);
+    color:#fff;font-weight:800;font-size:14.5px;cursor:pointer;margin-top:6px;
+    box-shadow:0 4px 14px rgba(255,111,161,0.35);
+  }
+  .close-x{
+    position:absolute;top:14px;right:18px;background:none;border:none;font-size:20px;color:var(--muted);cursor:pointer;
+  }
+
+  .task-modal-list{margin-top:8px;}
+  .task-modal-item{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .task-modal-item input{
+    flex:1;font-family:inherit;font-size:13.5px;padding:10px 12px;border-radius:10px;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  }
+
+  .toast{
+    position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:#fff;padding:10px 18px;border-radius:30px;font-size:12.5px;
+    opacity:0;transition:all .25s;z-index:60;pointer-events:none;white-space:nowrap;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="eyebrow">CLEANING CHECK</div>
+    <div class="title-row">
+      <h1 class="title">🫧 朝の掃除チェック</h1>
+      <button class="month-pill" id="monthPill">
+        <span class="chev" id="monthPrev">‹</span>
+        <span id="monthLabel">2026年6月</span>
+        <span class="chev" id="monthNext">›</span>
+      </button>
+    </div>
+    <div class="toolbar">
+      <div class="tool-btn active" id="syncIndicator" title="同期状況">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"></path></svg>
+      </div>
+      <div class="sync-label" id="syncLabel">同期済み</div>
+      <div style="flex:1;"></div>
+      <button class="tool-btn" id="settingsBtn" title="設定">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009.6 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9.6a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"></path></svg>
+      </button>
+    </div>
+    <div class="store-tabs" id="storeTabs"></div>
+  </header>
+
+  <main>
+    <div class="grid-wrap">
+      <table class="cleangrid" id="cleanGrid"></table>
+      <div class="empty-areas" id="emptyAreasMsg" style="display:none;">掃除場所が登録されていません。<br>右上の設定（⚙）から追加してください。</div>
+    </div>
+    <div class="legend" id="legendWrap">
+      <span class="swatch">場所名をタップすると掃除内容を確認できます</span>
+    </div>
+  </main>
+</div>
+
+<!-- settings sheet -->
+<div class="sheet-overlay" id="settingsOverlay">
+  <div class="sheet">
+    <button class="close-x" id="settingsClose">×</button>
+    <div class="sheet-handle"></div>
+    <h3>設定</h3>
+    <p class="sub">店舗名と掃除場所は全店舗で共有されます。</p>
+
+    <div class="sheet-section">
+      <div class="sheet-section-title">店舗名</div>
+      <div id="storeNameEdit"></div>
+    </div>
+
+    <div class="sheet-section">
+      <div class="sheet-section-title">掃除場所（A〜I など）</div>
+      <div id="areaEdit"></div>
+      <button class="add-btn" id="addAreaBtn">＋ 場所を追加</button>
+    </div>
+
+    <div class="sheet-section">
+      <div class="sheet-section-title" id="staffSectionTitle">スタッフ</div>
+      <div id="staffEdit"></div>
+      <button class="add-btn" id="addStaffBtn">＋ スタッフを追加</button>
+    </div>
+
+    <button class="btn-save-all" id="saveAllBtn">保存して閉じる</button>
+  </div>
+</div>
+
+<!-- staff picker sheet -->
+<div class="sheet-overlay" id="staffPickOverlay">
+  <div class="sheet">
+    <button class="close-x" id="staffPickClose">×</button>
+    <div class="sheet-handle"></div>
+    <h3 id="staffPickTitle"></h3>
+    <p class="sub">担当したスタッフを選んでください</p>
+    <div id="staffPickChips" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:4px;"></div>
+    <button class="add-btn" id="staffPickClear" style="margin-top:18px;">未実施に戻す</button>
+  </div>
+</div>
+
+<!-- task detail modal -->
+<div class="sheet-overlay" id="taskOverlay">
+  <div class="sheet">
+    <button class="close-x" id="taskClose">×</button>
+    <div class="sheet-handle"></div>
+    <h3 id="taskModalTitle"></h3>
+    <p class="sub">掃除内容を編集できます</p>
+    <div class="task-modal-list" id="taskModalList"></div>
+    <button class="add-btn" id="addTaskBtn">＋ 項目を追加</button>
+    <button class="btn-save-all" id="saveTaskBtn">保存して閉じる</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- 既定データ：掃除場所 ---------- */
+const DEFAULT_AREAS = [
+  { id:"A", name:"カットフロアー", tasks:["サッシ拭き（モップ）","待合＆椅子のテーブル拭き＆整理整頓＆下掃き","マットコロコロ"] },
+  { id:"B", name:"ラボ", tasks:["ごみ捨て","ラボ２液補充","ウォーマトロン掃除＆水補充","イヤーキャップ拭き＆2個重ね","整理整頓"] },
+  { id:"C", name:"シャンプールーム", tasks:["ホットタオル準備","シャンプールーム床拭き","シャンプー台下拭き","シャンプー・トリートメント剤補充","商品棚拭き＆整理"] },
+  { id:"D", name:"お客様トイレ", tasks:["床拭き（雑巾）","便座そうじ","ハンドソープ・綿棒・手拭きペーパー・トイレットペーパー・ハンドクリーム（チェック＆補充）","汚物入れ捨て","手洗い場磨き","鏡＆棚拭き"] },
+  { id:"E", name:"スタッフルーム＆キッチン", tasks:["整理整頓","掃除機かけ","キッチン床拭き","冷蔵庫中整理＆断捨離","飲み物収納棚＆キッチン整理整頓","手拭きタオル交換"] },
+  { id:"F", name:"外（駐車場・店前・ごみ捨て場・店裏）", tasks:["植木の水やり","ごみ置き場整理・たまったゴミまとめ","紙源センター連絡（段ボール回収など）"] },
+  { id:"G", name:"フロアー全体", tasks:["全体掃き（ほうき）","セット面＆椅子＆鏡拭き（ふきタオル）","カット椅子天盤ふき"] },
+  { id:"H", name:"レジ＆棚全般", tasks:["商品棚・物販拭き＆整理","材料棚拭き","伝票準備","レジ周り・棚・荷物置き拭き＆整理"] },
+  { id:"I", name:"スタッフトイレ", tasks:["床ふき（雑巾）","便座そうじ","ハンドソープ・綿棒・手拭きペーパー・トイレットペーパー・ハンドクリーム チェック＆補充","汚物入れ捨て","手洗い場磨き","鏡＆棚ふき"] },
+];
+const STORE_COUNT = 8;
+const DEFAULT_STORE_NAMES = ["霧島店","丸山店","店舗3","店舗4","店舗5","店舗6","店舗7","店舗8"];
+const DOW_JP = ["日","月","火","水","木","金","土"];
+const STAFF_PALETTE = ["#FF8FAB","#FFC857","#7BD389","#6EC6E8","#B18CF2","#FFB997","#F49AC2","#8FD9C4"];
+
+/* ---------- state ---------- */
+let config = { storeNames:[...DEFAULT_STORE_NAMES], areas:[...DEFAULT_AREAS.map(a=>({...a}))], staffByStore:{} };
+let currentStore = "1";
+let monthOffset = 0;
+let checklistCache = {}; // "storeId:yyyy-mm" -> { "yyyy-mm-dd": { areaId: staffId, ... } }
+let saveTimer = null;
+
+function ensureStaffArrays(){
+  for(let i=1;i<=STORE_COUNT;i++){
+    if(!Array.isArray(config.staffByStore[i])) config.staffByStore[i] = [];
+  }
+}
+function staffList(storeId){ return config.staffByStore[storeId] || []; }
+function staffColor(idx){ return STAFF_PALETTE[idx % STAFF_PALETTE.length]; }
+function findStaff(storeId, staffId){
+  return staffList(storeId).find(s=>s.id===staffId);
+}
+
+const pad2 = n => String(n).padStart(2,"0");
+function ymKey(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}`; }
+function ymdKey(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function addMonths(date,n){ return new Date(date.getFullYear(), date.getMonth()+n, 1); }
+function viewMonthDate(){ return addMonths(new Date(), monthOffset); }
+
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove("show"), 1600);
+}
+function setSync(label, ok){
+  document.getElementById("syncLabel").textContent = label;
+  document.getElementById("syncIndicator").classList.toggle("active", ok);
+}
+
+/* ---------- storage: Google スプレッドシート (GAS) 連携 ---------- */
+// 1) Apps Script を Web アプリとしてデプロイし、発行された URL を下の GAS_URL に貼り付けてください。
+//    手順はチャットの説明を参照してください（UMKシフト表と同じ方式です）。
+// 2) GAS_URL が空のままの場合は、このプレビュー内でのみ動作する一時保存（window.storage）にフォールバックします。
+const GAS_URL = ""; // 例: "https://script.google.com/macros/s/XXXXXXXXXXXX/exec"
+
+function hasGas(){ return !!GAS_URL; }
+
+async function kvGet(key){
+  if(hasGas()){
+    try{
+      const res = await fetch(`${GAS_URL}?key=${encodeURIComponent(key)}`);
+      const data = await res.json();
+      return (data && data.value != null) ? data.value : null;
+    }catch(e){
+      console.error("GAS get failed", e);
+      throw e;
+    }
+  }
+  if(window.storage){
+    const r = await window.storage.get(key, true);
+    return r ? r.value : null;
+  }
+  throw new Error("no storage backend available");
+}
+async function kvSet(key, value){
+  if(hasGas()){
+    try{
+      await fetch(GAS_URL, {
+        method:"POST",
+        headers:{ "Content-Type":"text/plain;charset=utf-8" }, // text/plain でCORSプリフライトを回避
+        body: JSON.stringify({ key, value })
+      });
+      return;
+    }catch(e){
+      console.error("GAS set failed", e);
+      throw e;
+    }
+  }
+  if(window.storage){
+    await window.storage.set(key, value, true);
+    return;
+  }
+  throw new Error("no storage backend available");
+}
+
+async function loadConfig(){
+  try{
+    const val = await kvGet("config_v2");
+    if(val){
+      const parsed = JSON.parse(val);
+      if(parsed.storeNames && parsed.storeNames.length === STORE_COUNT) config.storeNames = parsed.storeNames;
+      if(parsed.areas && parsed.areas.length) config.areas = parsed.areas;
+      if(parsed.staffByStore) config.staffByStore = parsed.staffByStore;
+    }
+  }catch(e){
+    setSync("同期失敗", false);
+    toast(hasGas() ? "スプレッドシートに接続できません。URLを確認してください" : "保存先が設定されていません");
+  }
+  ensureStaffArrays();
+}
+async function saveConfig(){
+  try{
+    await kvSet("config_v2", JSON.stringify(config));
+    setSync("同期済み", true);
+  }catch(e){ setSync("同期失敗", false); toast("保存に失敗しました"); }
+}
+async function loadChecklistMonth(storeId, ym){
+  const key = `${storeId}:${ym}`;
+  if(checklistCache[key]) return checklistCache[key];
+  let data = {};
+  try{
+    const val = await kvGet(`checklist_v3:${storeId}:${ym}`);
+    if(val) data = JSON.parse(val);
+  }catch(e){
+    setSync("同期失敗", false);
+    toast(hasGas() ? "スプレッドシートに接続できません" : "保存先が設定されていません");
+  }
+  checklistCache[key] = data;
+  return data;
+}
+async function saveChecklistMonth(storeId, ym){
+  const key = `${storeId}:${ym}`;
+  try{
+    await kvSet(`checklist_v3:${storeId}:${ym}`, JSON.stringify(checklistCache[key]||{}));
+    setSync("同期済み", true);
+  }catch(e){ setSync("同期失敗", false); toast("保存に失敗しました"); }
+}
+
+/* ---------- header: store tabs + month ---------- */
+function renderStoreTabs(){
+  const wrap = document.getElementById("storeTabs");
+  wrap.innerHTML = "";
+  for(let i=1;i<=STORE_COUNT;i++){
+    const tab = document.createElement("div");
+    tab.className = "store-tab" + (String(i)===currentStore ? " active" : "");
+    tab.textContent = config.storeNames[i-1];
+    tab.onclick = ()=>{ currentStore = String(i); renderStoreTabs(); renderLegend(); renderGrid(); };
+    wrap.appendChild(tab);
+  }
+}
+function renderLegend(){
+  const wrap = document.getElementById("legendWrap");
+  const list = staffList(currentStore);
+  let html = "";
+  list.forEach((s, idx)=>{
+    html += `<span class="swatch"><span class="staff-color-preview" style="background:${staffColor(idx)};"></span>${s.name}</span>`;
+  });
+  html += `<span class="swatch">場所名をタップすると掃除内容を確認できます</span>`;
+  wrap.innerHTML = html;
+}
+function renderMonthLabel(){
+  const d = viewMonthDate();
+  document.getElementById("monthLabel").textContent = `${d.getFullYear()}年${d.getMonth()+1}月`;
+}
+document.getElementById("monthPrev").onclick = ()=>{ monthOffset--; renderMonthLabel(); renderGrid(); };
+document.getElementById("monthNext").onclick = ()=>{ monthOffset++; renderMonthLabel(); renderGrid(); };
+
+/* ---------- grid ---------- */
+async function renderGrid(){
+  const grid = document.getElementById("cleanGrid");
+  const d = viewMonthDate();
+  const ym = ymKey(d);
+  const today = new Date();
+  const todayYmd = ymdKey(today);
+  const isCurrentMonthView = (d.getFullYear()===today.getFullYear() && d.getMonth()===today.getMonth());
+  const lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+
+  if(config.areas.length===0){
+    grid.innerHTML = "";
+    document.getElementById("emptyAreasMsg").style.display = "block";
+    return;
+  }
+  document.getElementById("emptyAreasMsg").style.display = "none";
+
+  const monthData = await loadChecklistMonth(currentStore, ym);
+
+  let thead = `<thead><tr><th class="areacol">場所</th>`;
+  for(let day=1; day<=lastDay; day++){
+    const dt = new Date(d.getFullYear(), d.getMonth(), day);
+    const dow = dt.getDay();
+    const ymd = ymdKey(dt);
+    let cls = "daycol";
+    if(dow===0) cls += " weekend col-sun";
+    else if(dow===6) cls += " weekend col-sat";
+    else if(dow===1) cls += " closed col-mon";
+    if(ymd===todayYmd) cls += " col-today";
+    const dowLabel = dow===1 ? "定休" : DOW_JP[dow];
+    thead += `<th class="${cls}"><div class="dow-num">${day}</div><div class="dow-jp">${dowLabel}</div></th>`;
+  }
+  thead += `</tr></thead>`;
+
+  let tbody = `<tbody>`;
+  config.areas.forEach((area, areaIdx)=>{
+    tbody += `<tr><td class="areacol"><button class="area-name-btn" data-area="${area.id}"><span class="badge"></span>${area.name}</button></td>`;
+    for(let day=1; day<=lastDay; day++){
+      const dt = new Date(d.getFullYear(), d.getMonth(), day);
+      const dow = dt.getDay();
+      const ymd = ymdKey(dt);
+      const isFuture = dt > today && ymd !== todayYmd;
+      const assignedId = monthData[ymd] && monthData[ymd][area.id];
+      const list = staffList(currentStore);
+      const sIdx = assignedId ? list.findIndex(s=>s.id===assignedId) : -1;
+      const assignedStaff = sIdx>=0 ? list[sIdx] : null;
+      const bg = assignedStaff ? staffColor(sIdx) : "transparent";
+      let cls = "daycell";
+      if(dow===0||dow===6) cls += " weekend";
+      else if(dow===1) cls += " closed";
+      if(ymd===todayYmd) cls += " col-today";
+      tbody += `<td class="${cls}"><button class="cellbtn ${assignedStaff?"done":""} ${isFuture?"future":""}" data-area="${area.id}" data-ymd="${ymd}" ${isFuture?"disabled":""}><span class="mark" style="background:${bg};">${assignedStaff?assignedStaff.name:"·"}</span></button></td>`;
+    }
+    tbody += `</tr>`;
+  });
+  tbody += `</tbody>`;
+
+  grid.innerHTML = thead + tbody;
+
+  grid.querySelectorAll(".cellbtn:not(.future)").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const areaId = btn.dataset.area;
+      const ymd = btn.dataset.ymd;
+      openStaffPicker(areaId, ymd, ym);
+    });
+  });
+
+  grid.querySelectorAll(".area-name-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>openTaskModal(btn.dataset.area));
+  });
+}
+
+/* ---------- staff picker ---------- */
+let pickerCtx = null; // { areaId, ymd, ym }
+function openStaffPicker(areaId, ymd, ym){
+  const area = config.areas.find(a=>a.id===areaId);
+  const list = staffList(currentStore);
+  if(list.length===0){
+    toast("先に設定（⚙）からスタッフを登録してください");
+    return;
+  }
+  pickerCtx = { areaId, ymd, ym };
+  const [, mm, dd] = ymd.split("-");
+  document.getElementById("staffPickTitle").textContent = `${area ? area.name : ""}　${parseInt(mm,10)}/${parseInt(dd,10)}`;
+  const chipsWrap = document.getElementById("staffPickChips");
+  chipsWrap.innerHTML = "";
+  list.forEach((s, idx)=>{
+    const chip = document.createElement("div");
+    chip.className = "staffchip";
+    chip.innerHTML = `<span class="dotcolor" style="background:${staffColor(idx)};"></span>${s.name}`;
+    chip.onclick = async ()=>{
+      const cm = await loadChecklistMonth(currentStore, ym);
+      if(!cm[ymd]) cm[ymd] = {};
+      cm[ymd][areaId] = s.id;
+      clearTimeout(saveTimer);
+      setSync("保存中…", true);
+      await saveChecklistMonth(currentStore, ym);
+      document.getElementById("staffPickOverlay").classList.remove("show");
+      renderGrid();
+    };
+    chipsWrap.appendChild(chip);
+  });
+  document.getElementById("staffPickOverlay").classList.add("show");
+}
+document.getElementById("staffPickClose").onclick = ()=>document.getElementById("staffPickOverlay").classList.remove("show");
+document.getElementById("staffPickOverlay").onclick = (e)=>{ if(e.target.id==="staffPickOverlay") e.currentTarget.classList.remove("show"); };
+document.getElementById("staffPickClear").onclick = async ()=>{
+  if(!pickerCtx) return;
+  const { areaId, ymd, ym } = pickerCtx;
+  const cm = await loadChecklistMonth(currentStore, ym);
+  if(cm[ymd]) delete cm[ymd][areaId];
+  await saveChecklistMonth(currentStore, ym);
+  document.getElementById("staffPickOverlay").classList.remove("show");
+  renderGrid();
+};
+
+let taskModalAreaId = null;
+let taskModalDraft = [];
+
+function renderTaskModalList(){
+  const list = document.getElementById("taskModalList");
+  if(taskModalDraft.length===0){
+    list.innerHTML = `<div class="task-modal-item" style="color:var(--muted);font-size:13px;">掃除内容はまだ登録されていません。</div>`;
+    return;
+  }
+  list.innerHTML = "";
+  taskModalDraft.forEach((t, idx)=>{
+    const row = document.createElement("div");
+    row.className = "task-modal-item";
+    row.innerHTML = `<input type="text" value="${t.replace(/"/g,'&quot;')}"><button class="icon-btn" title="削除">✕</button>`;
+    row.querySelector("input").addEventListener("input", (e)=>{ taskModalDraft[idx] = e.target.value; });
+    row.querySelector("button").addEventListener("click", ()=>{
+      taskModalDraft.splice(idx,1);
+      renderTaskModalList();
+    });
+    list.appendChild(row);
+  });
+}
+function openTaskModal(areaId){
+  const area = config.areas.find(a=>a.id===areaId);
+  if(!area) return;
+  taskModalAreaId = areaId;
+  taskModalDraft = (area.tasks || []).slice();
+  document.getElementById("taskModalTitle").textContent = area.name;
+  renderTaskModalList();
+  document.getElementById("taskOverlay").classList.add("show");
+}
+document.getElementById("addTaskBtn").onclick = ()=>{
+  taskModalDraft.push("");
+  renderTaskModalList();
+  const inputs = document.querySelectorAll("#taskModalList input");
+  if(inputs.length) inputs[inputs.length-1].focus();
+};
+document.getElementById("saveTaskBtn").onclick = async ()=>{
+  const area = config.areas.find(a=>a.id===taskModalAreaId);
+  if(area){
+    area.tasks = taskModalDraft.map(t=>t.trim()).filter(t=>t.length>0);
+    await saveConfig();
+    toast("掃除内容を保存しました");
+  }
+  document.getElementById("taskOverlay").classList.remove("show");
+};
+document.getElementById("taskClose").onclick = ()=>document.getElementById("taskOverlay").classList.remove("show");
+document.getElementById("taskOverlay").onclick = (e)=>{ if(e.target.id==="taskOverlay") e.currentTarget.classList.remove("show"); };
+
+/* ---------- settings sheet ---------- */
+function renderSettingsSheet(){
+  const storeWrap = document.getElementById("storeNameEdit");
+  storeWrap.innerHTML = "";
+  config.storeNames.forEach((name, idx)=>{
+    const row = document.createElement("div");
+    row.className = "row-edit";
+    row.innerHTML = `<input type="text" value="${name.replace(/"/g,'&quot;')}">`;
+    row.querySelector("input").addEventListener("change", async (e)=>{
+      config.storeNames[idx] = e.target.value.trim() || name;
+      await saveConfig();
+      renderStoreTabs();
+      toast("保存しました 💕");
+    });
+    storeWrap.appendChild(row);
+  });
+
+  const areaWrap = document.getElementById("areaEdit");
+  areaWrap.innerHTML = "";
+  config.areas.forEach((area, idx)=>{
+    const row = document.createElement("div");
+    row.className = "row-edit";
+    row.innerHTML = `<input type="text" value="${area.name.replace(/"/g,'&quot;')}"><button class="icon-btn" title="削除">✕</button>`;
+    row.querySelector("input").addEventListener("change", async (e)=>{
+      area.name = e.target.value.trim() || area.name;
+      await saveConfig();
+      renderGrid();
+      toast("保存しました 💕");
+    });
+    row.querySelector("button").addEventListener("click", async ()=>{
+      if(!confirm(`「${area.name}」を削除しますか？`)) return;
+      config.areas.splice(idx,1);
+      await saveConfig();
+      renderSettingsSheet();
+      renderGrid();
+      toast("削除しました");
+    });
+    areaWrap.appendChild(row);
+  });
+
+  document.getElementById("staffSectionTitle").textContent = `スタッフ（${config.storeNames[currentStore-1]}）`;
+  const staffWrap = document.getElementById("staffEdit");
+  staffWrap.innerHTML = "";
+  const list = staffList(currentStore);
+  list.forEach((s, idx)=>{
+    const row = document.createElement("div");
+    row.className = "row-edit";
+    row.innerHTML = `<span class="staff-color-preview" style="background:${staffColor(idx)};margin-right:2px;"></span><input type="text" value="${s.name.replace(/"/g,'&quot;')}"><button class="icon-btn" title="削除">✕</button>`;
+    row.querySelector("input").addEventListener("change", async (e)=>{
+      s.name = e.target.value.trim() || s.name;
+      await saveConfig();
+      renderLegend();
+      renderGrid();
+      toast("保存しました 💕");
+    });
+    row.querySelector("button").addEventListener("click", async ()=>{
+      if(!confirm(`「${s.name}」を削除しますか？`)) return;
+      list.splice(idx,1);
+      await saveConfig();
+      renderSettingsSheet();
+      renderLegend();
+      renderGrid();
+      toast("削除しました");
+    });
+    staffWrap.appendChild(row);
+  });
+}
+document.getElementById("addStaffBtn").onclick = async ()=>{
+  const list = staffList(currentStore);
+  list.push({ id:"staff_"+Date.now(), name:`スタッフ${list.length+1}` });
+  await saveConfig();
+  renderSettingsSheet();
+  renderLegend();
+};
+document.getElementById("settingsBtn").onclick = ()=>{
+  renderSettingsSheet();
+  document.getElementById("settingsOverlay").classList.add("show");
+};
+document.getElementById("settingsClose").onclick = ()=>document.getElementById("settingsOverlay").classList.remove("show");
+document.getElementById("settingsOverlay").onclick = (e)=>{ if(e.target.id==="settingsOverlay") e.currentTarget.classList.remove("show"); };
+document.getElementById("saveAllBtn").onclick = async ()=>{
+  await saveConfig();
+  renderStoreTabs();
+  renderLegend();
+  renderGrid();
+  toast("保存しました 💕");
+  document.getElementById("settingsOverlay").classList.remove("show");
+};
+document.getElementById("addAreaBtn").onclick = async ()=>{
+  const newId = "area_" + Date.now();
+  config.areas.push({ id:newId, name:"新しい場所", tasks:[] });
+  await saveConfig();
+  renderSettingsSheet();
+  renderGrid();
+};
+
+/* ---------- init ---------- */
+async function init(){
+  await loadConfig();
+  renderStoreTabs();
+  renderMonthLabel();
+  renderLegend();
+  await renderGrid();
+}
+init();
+</script>
+</body>
+</html>
