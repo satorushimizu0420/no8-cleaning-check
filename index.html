@@ -451,17 +451,19 @@ function sendReport(){
   // EmailJS REST API
   var payload=JSON.stringify({
     service_id:"service_no8",
-    template_id:"template_glweszf",
+    template_id:"template_ej9ifzr",
     user_id:"SDiiHZe2UZvk7kFux",
     template_params:{
       subject:S.year+"年"+S.month+"月 掃除チェック集計 - No.8 "+S.shopName,
       from_name:"No.8 "+S.shopName,
       from_email:SEND_TO,
+      to_name:"管理者",
       to_email:SEND_TO,
       reply_to:SEND_TO,
       name:"No.8 "+S.shopName,
       email:SEND_TO,
-      message:msg
+      message:msg,
+      title:S.year+"年"+S.month+"月 集計"
     }
   });
   var xhr=new XMLHttpRequest();
