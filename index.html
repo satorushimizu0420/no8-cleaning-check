@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="No.8掃除"/>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;}
-body{font-family:"Hiragino Sans","Yu Gothic UI",sans-serif;background:linear-gradient(160deg,#eef8ff,#f0f8ff,#e8f6ff);min-height:100vh;color:#3a2a3a;}
+body{font-family:"Hiragino Sans","Yu Gothic UI",sans-serif;background:linear-gradient(160deg,#eef8ff,#f0f8ff,#e8f6ff);min-height:100vh;color:#3a2a3a;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 button,input{font-family:inherit;}
 input{outline:none;}
 button{cursor:pointer;-webkit-appearance:none;}
@@ -85,7 +85,7 @@ button{cursor:pointer;-webkit-appearance:none;}
 .day-hdr.today-am{background:linear-gradient(180deg,#c8eeff,#a8d8f8);color:#007ab8;}
 .day-hdr.today-pm{background:linear-gradient(180deg,#ffe0b0,#ffcc80);color:#c05000;}
 .data-row{display:flex;border-bottom:1px solid #f8f0f8;}
-.data-cell{min-width:38px;width:38px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border-right:1px solid #f8f0f8;cursor:pointer;transition:background .1s;}
+.data-cell{min-width:38px;width:38px;height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border-right:1px solid #f8f0f8;cursor:pointer;touch-action:manipulation;user-select:none;}
 .data-cell:active{background:#fde8f8;}
 .data-cell.mon{background:#f8f5ff;cursor:default;}
 .data-cell.today-am{background:#e8f6ff;}
@@ -106,7 +106,7 @@ button{cursor:pointer;-webkit-appearance:none;}
 .sh-body{overflow-y:auto;flex:1;}
 
 /* 詳細シート アイテム */
-.area-item{display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid #f5eef5;cursor:pointer;gap:12px;transition:background .12s;}
+.area-item{display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid #f5eef5;cursor:pointer;gap:12px;touch-action:manipulation;user-select:none;}
 .area-item:active{background:#fdf0f8;}
 .area-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 .area-name{font-size:15px;font-weight:600;flex:1;}
@@ -115,7 +115,7 @@ button{cursor:pointer;-webkit-appearance:none;}
 
 /* ピッカー */
 .picker-grid{display:flex;flex-wrap:wrap;gap:10px;padding:18px 20px;}
-.pick-btn{display:flex;align-items:center;gap:8px;padding:11px 18px;border-radius:30px;border:1.5px solid #e8e0f0;background:#fff;color:#555;font-size:15px;cursor:pointer;min-width:90px;transition:all .15s;}
+.pick-btn{display:flex;align-items:center;gap:8px;padding:11px 18px;border-radius:30px;border:1.5px solid #e8e0f0;background:#fff;color:#555;font-size:15px;cursor:pointer;min-width:90px;transition:all .15s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;}
 .pick-btn.on{color:#fff;font-weight:700;}
 .pick-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 .undo-wrap{padding:4px 20px 20px;}
@@ -235,7 +235,10 @@ function toggle(period,dateStr,key,name){
   var cur=S.checks[period][dateStr][key];
   S.checks[period][dateStr][key]=(cur===name)?null:name;
   ls("checks",S.checks);
-  render();
+  // 即座に閉じてから非同期で再描画（レスポンス改善）
+  S.picker=null;
+  S.detailDay=null;
+  requestAnimationFrame(function(){ render(); });
 }
 
 // ─── 達成計算 ──────────────────────────────────────────────────────────────────
@@ -936,11 +939,13 @@ function render(){
       var dot=el("div","pick-dot");dot.style.background=isOn?"rgba(255,255,255,.7)":sc4;
       btn.appendChild(dot);btn.appendChild(tx(s));
       (function(s2){
-        btn.onclick=function(){
+        function doToggle(e){
+          e.preventDefault();
+          e.stopPropagation();
           toggle(pk.pm?"pm":"am",pk.dateStr,String(pk.idx),s2);
-          S.picker=null;
-          // 詳細シートが開いていれば更新
-        };
+        }
+        btn.addEventListener("touchend",doToggle,{passive:false});
+        btn.addEventListener("click",doToggle);
       })(s);
       pg.appendChild(btn);
     });
@@ -949,10 +954,15 @@ function render(){
       var uw=el("div","undo-wrap");
       var ub=el("button","undo-btn");ub.textContent="未実施に戻す";
       (function(pk2){
-        ub.onclick=function(){
-          toggle(pk2.pm?"pm":"am",pk2.dateStr,String(pk2.idx),pk2.checker);
-          S.picker=null;
-        };
+        (function(pk3){
+          function doUndo(e){
+            e.preventDefault();
+            e.stopPropagation();
+            toggle(pk3.pm?"pm":"am",pk3.dateStr,String(pk3.idx),pk3.checker);
+          }
+          ub.addEventListener("touchend",doUndo,{passive:false});
+          ub.addEventListener("click",doUndo);
+        })(pk2);
       })(pk);
       uw.appendChild(ub);sh3.appendChild(uw);
     }
