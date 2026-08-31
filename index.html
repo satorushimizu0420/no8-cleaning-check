@@ -455,6 +455,10 @@ function sendReport(){
     user_id:"SDiiHZe2UZvk7kFux",
     template_params:{
       subject:S.year+"年"+S.month+"月 掃除チェック集計 - No.8 "+S.shopName,
+      from_name:"No.8 "+S.shopName,
+      from_email:SEND_TO,
+      to_email:SEND_TO,
+      reply_to:SEND_TO,
       name:"No.8 "+S.shopName,
       email:SEND_TO,
       message:msg
