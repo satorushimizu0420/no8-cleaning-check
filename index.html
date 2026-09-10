@@ -207,8 +207,10 @@ var S={
   areasAm:lg("areasAm")||JSON.parse(JSON.stringify(DEF_AREAS)),
   tasksPm:lg("tasksPm")||DEF_PM.slice(),
   checks:lg("checks")||{am:{},pm:{}},
+  monthStaff:lg("monthStaff")||{},
   detailDay:null,
   picker:null,
+  msPicker:null,
   editAi:null,
   showReport:false,
   toast:null, toastTimer:null
@@ -235,6 +237,7 @@ function toggle(period,dateStr,key,name){
   var cur=S.checks[period][dateStr][key];
   S.checks[period][dateStr][key]=(cur===name)?null:name;
   ls("checks",S.checks);
+  ls("monthStaff",S.monthStaff);
   // 即座に閉じてから非同期で再描画（レスポンス改善）
   S.picker=null;
   S.detailDay=null;
@@ -488,6 +491,20 @@ function sendReport(){
   xhr.send(payload);
 }
 
+// ─── 月担当者 ───────────────────────────────────────────────────────────────────
+function msKey(){ return S.year+"-"+p2(S.month); }
+function getMs(ai){ var k=msKey(); return (S.monthStaff[k]&&S.monthStaff[k]["a"+String(ai)])||null; }
+function setMs(ai,name){
+  var k=msKey();
+  if(!S.monthStaff[k])S.monthStaff[k]={};
+  var key="a"+String(ai);
+  var cur=S.monthStaff[k][key];
+  S.monthStaff[k][key]=(cur===name)?null:name;
+  ls("monthStaff",S.monthStaff);
+  S.msPicker=null;
+  requestAnimationFrame(function(){render();});
+}
+
 // ─── DOM ─────────────────────────────────────────────────────────────────────
 function el(tag,cls,style){var e=document.createElement(tag);if(cls)e.className=cls;if(style)e.style.cssText=style;return e;}
 function tx(t){return document.createTextNode(String(t||""));}
@@ -585,6 +602,7 @@ function render(){
     var gl=el("div","grid-left");
     gl.appendChild(el("div","grid-corner")).appendChild(tx("掃除場所"));
     var items=isPm?S.tasksPm:S.areasAm;
+
     items.forEach(function(item,idx){
       var nm=isPm?item:item.name;
       var ac=el("div","grid-area");
@@ -599,6 +617,41 @@ function render(){
     });
     gl.appendChild(el("div","grid-total-lbl")).appendChild(tx("計"));
     gw.appendChild(gl);
+
+    // ── 担当者縦列（AMのみ） ────────────────────────────────────────────────────
+    if(!isPm){
+      var msCol=el("div","","flex-shrink:0;width:48px;border-right:1.5px solid #c8eeff;background:#f0faff;");
+      // コーナー
+      var msCrn=el("div","","height:52px;display:flex;align-items:flex-end;justify-content:center;padding:0 2px 8px;font-size:9px;color:#4ab8e8;font-weight:700;border-bottom:1.5px solid #c8eeff;text-align:center;");
+      msCrn.textContent="担当";msCol.appendChild(msCrn);
+      // 各掃除場所の担当者セル
+      S.areasAm.forEach(function(area,ai){
+        var msName=getMs(ai);
+        var sc=msName?COLORS[staffList.indexOf(msName)%COLORS.length]:"";
+        var msC=el("div","","height:44px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #d8f0ff;cursor:pointer;touch-action:manipulation;");
+        if(msName){
+          var msBdg=el("div","","background:"+sc+";color:#fff;font-size:7px;width:40px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;padding:0 2px;");
+          msBdg.textContent=msName.length>4?msName.slice(0,3)+"…":msName;
+          msC.appendChild(msBdg);
+        }else{
+          var msDash=el("span","","font-size:9px;color:#b8ddf0;");msDash.textContent="－";msC.appendChild(msDash);
+        }
+        (function(ai2,areaNm){
+          function openMsCol(e){
+            e.preventDefault();e.stopPropagation();
+            S.msPicker={type:"area",ai:ai2,label:areaNm};
+            requestAnimationFrame(function(){render();});
+          }
+          msC.addEventListener("touchend",openMsCol,{passive:false});
+          msC.addEventListener("click",openMsCol);
+        })(ai,area.name);
+        msCol.appendChild(msC);
+      });
+      // 合計行スペース
+      var msTot=el("div","","height:36px;border-top:1.5px solid #c8eeff;background:#e8f6ff;");
+      msCol.appendChild(msTot);
+      gw.appendChild(msCol);
+    }
 
     // 右側：横スクロール
     var gRight=el("div","grid-right");
@@ -992,6 +1045,82 @@ function render(){
   }
 
   // トースト
+  // ── 月担当者ピッカー ─────────────────────────────────────────────────────────
+  if(S.msPicker!==null){
+    var mp=S.msPicker;
+    var ov5=el("div","overlay");ov5.style.zIndex="65";
+    ov5.onclick=function(){S.msPicker=null;render();};
+    var mpSh=el("div","sheet");mpSh.style.paddingBottom="28px";
+    mpSh.onclick=function(e){e.stopPropagation();};
+    mpSh.appendChild(el("div","sh-handle"));
+    var mpHdr=el("div","sh-hdr");
+    var mpT=el("div","sh-title");
+    if(mp.type==="day"){
+      mpT.textContent=S.month+"月"+mp.day+"日の担当者";
+    }else if(mp.type==="area"){
+      mpT.textContent=mp.label+" の担当者（"+S.year+"年"+S.month+"月）";
+    }else{
+      mpT.textContent=S.year+"年"+S.month+"月 全体担当者設定";
+    }
+    var mpS=el("div","sh-sub");mpS.textContent="担当するスタッフを選んでください";
+    mpHdr.appendChild(mpT);mpHdr.appendChild(mpS);mpSh.appendChild(mpHdr);
+
+    var mpGrid=el("div","picker-grid");
+    staffList.forEach(function(s,idx){
+      var sc=COLORS[idx%COLORS.length];
+      var curMs=mp.type==="area"?getMs(mp.ai):(mp.type==="day"?getMs(mp.day):null);
+      var isOn=(curMs===s);
+      var btn=el("div","pick-btn"+(isOn?" on":""));
+      if(isOn)btn.style.background=sc;
+      btn.style.borderColor=isOn?sc:"#e8e0f0";
+      var dot=el("div","pick-dot");dot.style.background=isOn?"rgba(255,255,255,.7)":sc;
+      btn.appendChild(dot);btn.appendChild(tx(s));
+      (function(s2){
+        function doMs(e){
+          e.preventDefault();e.stopPropagation();
+          if(mp.type==="area"){
+            setMs(mp.ai,s2);
+          }else if(mp.type==="day"){
+            setMs(mp.day,s2);
+          }else{
+            // 全掃除場所に一括設定
+            S.areasAm.forEach(function(_,ai){ setMs(ai,s2); });
+          }
+        }
+        btn.addEventListener("touchend",doMs,{passive:false});
+        btn.addEventListener("click",doMs);
+      })(s);
+      mpGrid.appendChild(btn);
+    });
+    mpSh.appendChild(mpGrid);
+
+    // 未設定に戻す
+    var mpUw=el("div","undo-wrap");
+    var mpUb=el("button","undo-btn");mpUb.textContent="担当者を解除";
+    (function(mp2){
+      function doMsUndo(e){
+        e.preventDefault();
+        if(mp2.type==="day"){
+          setMs(mp2.day,getMs(mp2.day));
+        }else{
+          for(var d=1;d<=days;d++){
+            if(!isMon(S.year,S.month,d)){
+              var k=msKey();
+              if(S.monthStaff[k])S.monthStaff[k][String(d)]=null;
+            }
+          }
+          ls("monthStaff",S.monthStaff);
+          S.msPicker=null;
+          requestAnimationFrame(function(){render();});
+        }
+      }
+      mpUb.addEventListener("touchend",doMsUndo,{passive:false});
+      mpUb.addEventListener("click",doMsUndo);
+    })(mp);
+    mpUw.appendChild(mpUb);mpSh.appendChild(mpUw);
+    ov5.appendChild(mpSh);root.appendChild(ov5);
+  }
+
   if(S.toast){var tst=el("div","toast");tst.textContent=S.toast;root.appendChild(tst);}
 
   // DOM更新
